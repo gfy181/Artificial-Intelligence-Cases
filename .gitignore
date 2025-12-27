@@ -1,0 +1,26 @@
+# Python / Conda
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv
+conda/
+
+# 数据集（绝对不能进 Git）
+coco/
+coco数据集/
+datasets/
+data/
+
+# 模型权重 & 安装包
+*.pt
+*.pth
+*.onnx
+*.whl
+*.tar
+*.zip
+
+# IDE
+.vscode/
+.idea/

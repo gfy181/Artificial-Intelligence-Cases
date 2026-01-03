@@ -23,16 +23,15 @@ def load_image(filename):
         return Image.open(filename)
 
 
-def unique_mask_values(idx, mask_dir, mask_suffix):
-    mask_file = list(mask_dir.glob(idx + mask_suffix + '.*'))[0]
-    mask = np.asarray(load_image(mask_file))
+def unique_mask_values(mask_file):
+    mask = np.asarray(Image.open(mask_file))
     if mask.ndim == 2:
         return np.unique(mask)
     elif mask.ndim == 3:
-        mask = mask.reshape(-1, mask.shape[-1])
-        return np.unique(mask, axis=0)
+        return np.unique(mask.reshape(-1, mask.shape[-1]), axis=0)
     else:
-        raise ValueError(f'Loaded masks should have 2 or 3 dimensions, found {mask.ndim}')
+        raise ValueError(f'Unsupported mask shape: {mask.shape}')
+
 
 
 class BasicDataset(Dataset):
@@ -49,11 +48,22 @@ class BasicDataset(Dataset):
 
         logging.info(f'Creating dataset with {len(self.ids)} examples')
         logging.info('Scanning mask files to determine unique values')
-        with Pool() as p:
-            unique = list(tqdm(
-                p.imap(partial(unique_mask_values, mask_dir=self.mask_dir, mask_suffix=self.mask_suffix), self.ids),
-                total=len(self.ids)
-            ))
+        # with Pool() as p:
+        #     unique = list(tqdm(
+        #         p.imap(partial(unique_mask_values, mask_dir=self.mask_dir, mask_suffix=self.mask_suffix), self.ids),
+        #         total=len(self.ids)
+        #     ))
+
+        self.mask_files = []
+        for name in self.ids:
+            files = list(self.mask_dir.glob(name + self.mask_suffix + '.*'))
+            if len(files) != 1:
+                raise RuntimeError(f'Expected 1 mask for {name}, got {files}')
+            self.mask_files.append(files[0])
+
+        unique = []
+        for mask_file in tqdm(self.mask_files):
+            unique.append(unique_mask_values(mask_file))
 
         self.mask_values = list(sorted(np.unique(np.concatenate(unique), axis=0).tolist()))
         logging.info(f'Unique mask values: {self.mask_values}')
@@ -112,6 +122,7 @@ class BasicDataset(Dataset):
         }
 
 
-class CarvanaDataset(BasicDataset):
-    def __init__(self, images_dir, mask_dir, scale=1):
-        super().__init__(images_dir, mask_dir, scale, mask_suffix='_mask')
+# class CarvanaDataset(BasicDataset):
+#     def __init__(self, images_dir, mask_dir, scale=1):
+#         super().__init__(images_dir, mask_dir, scale, mask_suffix='_mask')
+
